@@ -56,7 +56,7 @@ h1{font-family:var(--display);font-weight:700;font-size:clamp(34px,6vw,52px);lin
 .sw.d{border-top:1.6px dashed var(--route)}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--ship)}
 h2{font-family:var(--display);font-weight:600;font-size:22px;margin:0}
-.twocol{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:18px}
+.twocol{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,260px);gap:18px}
 @media (max-width:760px){.twocol{grid-template-columns:1fr}.voy{text-align:left}}
 .panel{background:var(--panel);border:1px solid var(--rule);border-radius:6px;padding:14px 16px;min-width:0;display:grid;gap:10px;align-content:start}
 .tbl{overflow-x:auto}
@@ -87,7 +87,7 @@ body{margin:0}
     <div class="stat"><div class="k">Speed · course</div><div class="v" id="spd">–</div><div class="s" id="spdS">&nbsp;</div></div>
     <div class="stat"><div class="k">Last position</div><div class="v" id="pos" style="font-size:22px">–</div><div class="s" id="posS">&nbsp;</div></div>
     <div class="stat"><div class="k">Distance covered</div><div class="v" id="cov">–</div><div class="s" id="covS">&nbsp;</div></div>
-    <div class="stat"><div class="k">Rough miles to go</div><div class="v" id="nm">–</div><div class="s">via Cape of Good Hope</div></div>
+    <div class="stat"><div class="k">Rough miles to go</div><div class="v" id="nm">–</div><div class="s" id="nmS">via Cape of Good Hope</div></div>
   </section>
 
   <figure class="chart" style="margin:0">
@@ -111,8 +111,8 @@ body{margin:0}
     <section class="panel">
       <h2>Position log</h2>
       <div class="tbl"><table>
-        <thead><tr><th>Fix time (UK)</th><th>Lat</th><th>Lon</th><th>Kn</th><th>Course</th><th>Area</th><th>ETA shown</th></tr></thead>
-        <tbody id="log"><tr><td colspan="7" class="empty">No fixes logged yet. The data file updates hourly when MarineTraffic has a newer position.</td></tr></tbody>
+        <thead><tr><th>Fix time (UK)</th><th>Lat</th><th>Lon</th><th>Kn</th><th>Course</th><th>Area</th><th>To go (mi)</th><th>ETA shown</th></tr></thead>
+        <tbody id="log"><tr><td colspan="8" class="empty">No fixes logged yet. The data file updates hourly when MarineTraffic has a newer position.</td></tr></tbody>
       </table></div>
     </section>
     <section class="panel notes">
@@ -163,6 +163,9 @@ body{margin:0}
     const logged=legSum(fixes.map(f=>[f.lat,f.lon]));
     return {pre,logged,total:pre+logged};
   }
+  // rough distance left from a fix along the typical route; miles shown to the nearest 10
+  const toGo=f=>legSum(remaining([f.lat,f.lon]));
+  const fmtMi=n=>(Math.round(n*1.15078/10)*10).toLocaleString("en-GB");
   const pathOf=pts=>pts.map((p,i)=>(i?"L":"M")+P(p[0],p[1]).map(v=>v.toFixed(1)).join(",")).join("");
   $("route").setAttribute("d",pathOf(WAY));
 
@@ -183,9 +186,10 @@ body{margin:0}
       const [x,y]=P(last.lat,last.lon);
       el("path",{d:"M0,-11 L7,8 L0,4 L-7,8 Z",class:"shipm",transform:`translate(${x.toFixed(1)},${y.toFixed(1)}) rotate(${last.course||0})`},sg);
       $("route").setAttribute("d",pathOf(remaining([last.lat,last.lon])));
-      let nm=0;const r=remaining([last.lat,last.lon]);for(let i=1;i<r.length;i++)nm+=nmBetween(r[i-1],r[i]);
-      $("nm").textContent="≈ "+Math.round(nm/100)*100+" nm";
-      const c=covered(), fmtN=v=>Math.round(v).toLocaleString("en-GB");
+      const nm=toGo(last), fmtN=v=>Math.round(v).toLocaleString("en-GB");
+      $("nm").textContent="≈ "+fmtMi(nm)+" mi";
+      $("nmS").textContent="≈ "+fmtN(nm)+" nm · via Cape of Good Hope";
+      const c=covered();
       $("cov").textContent="≈ "+fmtN(c.total*1.15078)+" mi";
       $("covS").textContent="≈ "+fmtN(c.total)+" nm · "+fmtN(c.logged)+" nm tracked";
       $("cov").parentElement.title="Route estimate Gunsan → first logged fix: "+fmtN(c.pre)+" nm. Logged fix-to-fix track since then: "+fmtN(c.logged)+" nm (straight lines between positions, so slightly under the true distance).";
@@ -201,7 +205,7 @@ body{margin:0}
       if(voyage.checkedAt)$("checked").textContent="last checked "+ago(voyage.checkedAt);
     }
     const tb=$("log");
-    if(fixes.length){tb.textContent="";[...fixes].reverse().forEach(f=>{const tr=document.createElement("tr");[ukTime(f.ts),fmtLat(f.lat),fmtLon(f.lon),f.speed??"–",(f.course??"–")+"°",f.area||"–",f.eta?ukDate(f.eta):"–"].forEach(v=>{const td=document.createElement("td");td.textContent=v;tr.appendChild(td)});tb.appendChild(tr)})}
+    if(fixes.length){tb.textContent="";[...fixes].reverse().forEach(f=>{const tr=document.createElement("tr");[ukTime(f.ts),fmtLat(f.lat),fmtLon(f.lon),f.speed??"–",(f.course??"–")+"°",f.area||"–","≈ "+fmtMi(toGo(f)),f.eta?ukDate(f.eta):"–"].forEach(v=>{const td=document.createElement("td");td.textContent=v;tr.appendChild(td)});tb.appendChild(tr)})}
   }
   render();
 
