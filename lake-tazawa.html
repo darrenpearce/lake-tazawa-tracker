@@ -86,6 +86,7 @@ body{margin:0}
     <div class="stat"><div class="k">Voyage progress</div><div class="v" id="prog">–</div><div class="bar"><i id="progBar"></i></div></div>
     <div class="stat"><div class="k">Speed · course</div><div class="v" id="spd">–</div><div class="s" id="spdS">&nbsp;</div></div>
     <div class="stat"><div class="k">Last position</div><div class="v" id="pos" style="font-size:22px">–</div><div class="s" id="posS">&nbsp;</div></div>
+    <div class="stat"><div class="k">Distance covered</div><div class="v" id="cov">–</div><div class="s" id="covS">&nbsp;</div></div>
     <div class="stat"><div class="k">Rough miles to go</div><div class="v" id="nm">–</div><div class="s">via Cape of Good Hope</div></div>
   </section>
 
@@ -146,10 +147,21 @@ body{margin:0}
 
   const nmBetween=(a,b)=>{const f1=a[0]*R,f2=b[0]*R,dl=(b[1]-a[1])*R;const d=Math.acos(Math.min(1,Math.sin(f1)*Math.sin(f2)+Math.cos(f1)*Math.cos(f2)*Math.cos(dl)));return d*3440.065};
   // remaining route from the latest fix: join the nearest waypoint ahead
-  function remaining(pt){
+  // index of the waypoint just ahead of a point on the typical route
+  function segIdx(pt){
     let best=0,bd=1e9;
     for(let i=0;i<WAY.length-1;i++){const d=nmBetween(pt,WAY[i+1])+nmBetween(pt,WAY[i])-nmBetween(WAY[i],WAY[i+1]);if(d<bd){bd=d;best=i+1}}
-    return [pt,...WAY.slice(best)];
+    return best;
+  }
+  function remaining(pt){return [pt,...WAY.slice(segIdx(pt))]}
+  const legSum=pts=>{let n=0;for(let i=1;i<pts.length;i++)n+=nmBetween(pts[i-1],pts[i]);return n};
+  // distance covered: typical route from Gunsan to the first logged fix (before tracking began), then fix-to-fix legs
+  function covered(){
+    if(!fixes.length)return null;
+    const f0=[fixes[0].lat,fixes[0].lon];
+    const pre=legSum([...WAY.slice(0,segIdx(f0)),f0]);
+    const logged=legSum(fixes.map(f=>[f.lat,f.lon]));
+    return {pre,logged,total:pre+logged};
   }
   const pathOf=pts=>pts.map((p,i)=>(i?"L":"M")+P(p[0],p[1]).map(v=>v.toFixed(1)).join(",")).join("");
   $("route").setAttribute("d",pathOf(WAY));
@@ -173,6 +185,10 @@ body{margin:0}
       $("route").setAttribute("d",pathOf(remaining([last.lat,last.lon])));
       let nm=0;const r=remaining([last.lat,last.lon]);for(let i=1;i<r.length;i++)nm+=nmBetween(r[i-1],r[i]);
       $("nm").textContent="≈ "+Math.round(nm/100)*100+" nm";
+      const c=covered(), fmtN=v=>Math.round(v).toLocaleString("en-GB");
+      $("cov").textContent="≈ "+fmtN(c.total*1.15078)+" mi";
+      $("covS").textContent="≈ "+fmtN(c.total)+" nm · "+fmtN(c.logged)+" nm tracked";
+      $("cov").parentElement.title="Route estimate Gunsan → first logged fix: "+fmtN(c.pre)+" nm. Logged fix-to-fix track since then: "+fmtN(c.logged)+" nm (straight lines between positions, so slightly under the true distance).";
       $("pos").textContent=fmtLat(last.lat)+" "+fmtLon(last.lon);
       const stale=(Date.now()/1000-last.ts)>6*3600;
       $("posS").innerHTML=`${ago(last.ts)} <span class="pill ${stale?"warn":"good"}">${stale?"out of range":"fresh"}</span>`;
