@@ -64,6 +64,7 @@ table{border-collapse:collapse;width:100%;font-family:var(--mono);font-size:12.5
 th{text-align:left;font-weight:500;color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:6px 10px 6px 0;border-bottom:1px solid var(--rule);white-space:nowrap}
 td{padding:6px 10px 6px 0;border-bottom:1px solid var(--rule);white-space:nowrap}
 .empty{color:var(--muted);font-size:13.5px}
+tr.dep td{color:var(--muted);border-bottom:0}
 .notes p{margin:0;font-size:13.5px;color:var(--muted)} .notes b{color:var(--ink);font-weight:600}
 a{color:var(--track)}
 a:focus-visible{outline:2px solid var(--track);outline-offset:2px}
@@ -205,7 +206,10 @@ body{margin:0}
       if(voyage.checkedAt)$("checked").textContent="last checked "+ago(voyage.checkedAt);
     }
     const tb=$("log");
-    if(fixes.length){tb.textContent="";[...fixes].reverse().forEach(f=>{const tr=document.createElement("tr");[ukTime(f.ts),fmtLat(f.lat),fmtLon(f.lon),f.speed??"–",(f.course??"–")+"°",f.area||"–","≈ "+fmtMi(toGo(f)),f.eta?ukDate(f.eta):"–"].forEach(v=>{const td=document.createElement("td");td.textContent=v;tr.appendChild(td)});tb.appendChild(tr)})}
+    const row=(vals,cls)=>{const tr=document.createElement("tr");if(cls)tr.className=cls;vals.forEach(v=>{const td=document.createElement("td");td.textContent=v;tr.appendChild(td)});tb.appendChild(tr)};
+    if(fixes.length){tb.textContent="";[...fixes].reverse().forEach(f=>row([ukTime(f.ts),fmtLat(f.lat),fmtLon(f.lon),f.speed??"–",(f.course??"–")+"°",f.area||"–","≈ "+fmtMi(toGo(f)),f.eta?ukDate(f.eta):"–"]));
+      // departure line: the whole typical route still to go
+      if(voyage&&voyage.departureTs)row([ukTime(voyage.departureTs),fmtLat(GUNSAN[0]),fmtLon(GUNSAN[1]),"–","–","Departed Gunsan","≈ "+fmtMi(legSum(WAY)),"–"],"dep")}
   }
   render();
 
